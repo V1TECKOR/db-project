@@ -73,7 +73,7 @@ def login():
         user = authenticate(username, password)
         if user:
             login_user(user)
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("index"))
         else:
             return render_template(
                 "login.html",
