@@ -99,26 +99,59 @@ def load_user(user_id):
 
 
 # Helpers
-def register_user(username, password):
-    logger.info("register_user(): versuche neuen User '%s' anzulegen", username)
+def register_user(first_name, last_name, email, license_no, password):
+    logger.info(
+        "register_user(): neuer User %s %s (%s) lic=%s",
+        first_name, last_name, email, license_no
+    )
 
-    existing = User.get_by_username(username)
-    if existing:
-        logger.warning("register_user(): Username '%s' existiert bereits", username)
-        return False
+    # E-Mail schon vorhanden?
+    existing_email = db_read(
+        "SELECT id FROM users WHERE email=%s",
+        (email,),
+        single=True
+    )
+    if existing_email:
+        return False, "E-Mail ist bereits registriert."
+
+    # Lizenznummer schon vorhanden?
+    existing_lic = db_read(
+        "SELECT id FROM users WHERE license_no=%s",
+        (license_no,),
+        single=True
+    )
+    if existing_lic:
+        return False, "Lizenznummer ist bereits registriert."
+
+    # Club anhand Lizenznummer finden
+    club_row = db_read("""
+        SELECT c.id, c.name
+        FROM license_club_map m
+        JOIN clubs c ON c.id = m.club_id
+        WHERE m.license_no=%s
+        LIMIT 1
+    """, (license_no,), single=True)
+
+    if not club_row:
+        return False, "Lizenznummer unbekannt. Bitte prüfe die Eingabe."
+
+    club_id = club_row["id"]
+
+    # Username-Strategie: wir nutzen E-Mail als Username
+    username = email
 
     hashed = generate_password_hash(password)
-    try:
-        db_write(
-            "INSERT INTO users (username, password) VALUES (%s, %s)",
-            (username, hashed)
-        )
-        logger.info("register_user(): User '%s' erfolgreich angelegt", username)
-    except Exception:
-        logger.exception("Fehler beim Anlegen von User '%s'", username)
-        return False
 
-    return True
+    try:
+        db_write("""
+            INSERT INTO users (username, password, first_name, last_name, email, license_no, club_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (username, hashed, first_name, last_name, email, license_no, club_id))
+    except Exception:
+        logger.exception("Fehler beim Anlegen des Users")
+        return False, "Fehler beim Registrieren (DB)."
+
+    return True, f"Registrierung erfolgreich. Club erkannt: {club_row['name']}"
 
 
 def authenticate(username, password):
