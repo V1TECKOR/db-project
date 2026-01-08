@@ -80,25 +80,18 @@ def register():
     error = None
 
     if request.method == "POST":
-        username = request.form["username"]
+        first_name = request.form["first_name"].strip()
+        last_name = request.form["last_name"].strip()
+        email = request.form["email"].strip().lower()
+        license_no = request.form["license_no"].strip().upper()
         password = request.form["password"]
 
-        ok = register_user(username, password)
+        ok, msg = register_user(first_name, last_name, email, license_no, password)
         if ok:
             return redirect(url_for("login"))
+        error = msg
 
-        error = "Benutzername existiert bereits."
-
-    return render_template(
-        "auth.html",
-        title="Neues Konto erstellen",
-        action=url_for("register"),
-        button_label="Registrieren",
-        error=error,
-        footer_text="Du hast bereits ein Konto?",
-        footer_link_url=url_for("login"),
-        footer_link_label="Einloggen"
-    )
+    return render_template("register.html", error=error)
 
 @app.route("/logout")
 @login_required
