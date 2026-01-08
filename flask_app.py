@@ -105,7 +105,15 @@ def logout():
 @app.route("/", methods=["GET"])
 @login_required
 def index():
-    return render_template("dashboard.html")
+    row = db_read("""
+        SELECT c.name
+        FROM users u
+        JOIN clubs c ON c.id = u.club_id
+        WHERE u.id=%s
+    """, (current_user.id,), single=True)
+
+    club_name = row["name"] if row else None
+    return render_template("dashboard.html", club_name=club_name)
 
     # POST
     content = request.form["contents"]
