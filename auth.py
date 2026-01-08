@@ -100,12 +100,12 @@ def load_user(user_id):
 
 # Helpers
 def register_user(first_name, last_name, email, license_no, password):
+    # NOTE: 4 spaces indentation in this function is REQUIRED
     logger.info(
         "register_user(): neuer User %s %s (%s) lic=%s",
         first_name, last_name, email, license_no
     )
 
-    # E-Mail schon vorhanden?
     existing_email = db_read(
         "SELECT id FROM users WHERE email=%s",
         (email,),
@@ -114,7 +114,6 @@ def register_user(first_name, last_name, email, license_no, password):
     if existing_email:
         return False, "E-Mail ist bereits registriert."
 
-    # Lizenznummer schon vorhanden?
     existing_lic = db_read(
         "SELECT id FROM users WHERE license_no=%s",
         (license_no,),
@@ -123,7 +122,6 @@ def register_user(first_name, last_name, email, license_no, password):
     if existing_lic:
         return False, "Lizenznummer ist bereits registriert."
 
-    # Club anhand Lizenznummer finden
     club_row = db_read("""
         SELECT c.id, c.name
         FROM license_club_map m
@@ -136,10 +134,7 @@ def register_user(first_name, last_name, email, license_no, password):
         return False, "Lizenznummer unbekannt. Bitte prüfe die Eingabe."
 
     club_id = club_row["id"]
-
-    # Username-Strategie: wir nutzen E-Mail als Username
     username = email
-
     hashed = generate_password_hash(password)
 
     try:
