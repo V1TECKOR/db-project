@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="jumbotron" style="background:white; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+  <h1>🎾 Interclub Dashboard</h1>
+  <p>Willkommen, <strong>{{ current_user.username }}</strong></p>
+  <p>Organisiere deine Interclub-Teams, Matches und Termine an einem Ort.</p>
+</div>
+
+<div class="row">
+
+  <div class="col-md-4">
+    <div class="panel panel-default">
+      <div class="panel-heading"><strong>🏟 Mein Club</strong></div>
+      <div class="panel-body">
+        <p>Du bist bei deinem Club registriert.</p>
+        <p><em>(Club-System kommt als Nächstes)</em></p>
+        <a class="btn btn-primary btn-block disabled">Club anzeigen</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="panel panel-default">
+      <div class="panel-heading"><strong>👥 Meine Teams</strong></div>
+      <div class="panel-body">
+        <p>Sieh deine Teams oder tritt einem neuen Team bei.</p>
+        <a class="btn btn-success btn-block disabled">Teams verwalten</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="panel panel-default">
+      <div class="panel-heading"><strong>📅 Matches</strong></div>
+      <div class="panel-body">
+        <p>Plane Matches und stimme Termine ab.</p>
+        <a class="btn btn-info btn-block disabled">Matches anzeigen</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<hr>
+
+<h3>🚀 Projektstatus</h3>
+<ul>
+  <li>✅ Login & Registrierung</li>
+  <li>✅ Datenbankanbindung</li>
+  <li>⬜ Clubs</li>
+  <li>⬜ Teams</li>
+  <li>⬜ Matchplanung</li>
+  <li>⬜ Terminabstimmung</li>
+</ul>
+
+{% endblock %}
