@@ -16,24 +16,48 @@ class User(UserMixin):
         self.password = password
 
     @staticmethod
-    def get_by_id(user_id):
-        logger.debug("User.get_by_id() aufgerufen mit user_id=%s", user_id)
-        try:
-            row = db_read(
-                "SELECT * FROM users WHERE id = %s",
-                (user_id,),
-                single=True
-            )
-            logger.debug("User.get_by_id() DB-Ergebnis: %r", row)
-        except Exception:
-            logger.exception("Fehler bei User.get_by_id(%s)", user_id)
-            return None
+    def register_user(first_name, last_name, email, license_no, password):
+    logger.info("register_user(): neuer User %s %s (%s) lic=%s", first_name, last_name, email, license_no)
 
-        if row:
-            return User(row["id"], row["username"], row["password"])
-        else:
-            logger.warning("User.get_by_id(): kein User mit id=%s gefunden", user_id)
-            return None
+    # 1) E-Mail schon vorhanden?
+    existing_email = db_read("SELECT id FROM users WHERE email=%s", (email,), single=True)
+    if existing_email:
+        return False, "E-Mail ist bereits registriert."
+
+    # 2) Lizenznummer schon vorhanden?
+    existing_lic = db_read("SELECT id FROM users WHERE license_no=%s", (license_no,), single=True)
+    if existing_lic:
+        return False, "Lizenznummer ist bereits registriert."
+
+    # 3) Club anhand Lizenznummer finden
+    club_row = db_read("""
+        SELECT c.id, c.name
+        FROM license_club_map m
+        JOIN clubs c ON c.id = m.club_id
+        WHERE m.license_no=%s
+        LIMIT 1
+    """, (license_no,), single=True)
+
+    if not club_row:
+        return False, "Lizenznummer unbekannt. Bitte prüfe die Eingabe oder kontaktiere den Club."
+
+    club_id = club_row["id"]
+
+    # 4) Username automatisch aus Email machen (oder du definierst eigene Regel)
+    username = email  # simplest: username = email
+
+    # 5) Passwort hashen + speichern
+    hashed = generate_password_hash(password)
+    try:
+        db_write("""
+            INSERT INTO users (username, password, first_name, last_name, email, license_no, club_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (username, hashed, first_name, last_name, email, license_no, club_id))
+    except Exception:
+        logger.exception("Fehler beim Anlegen des Users")
+        return False, "Fehler beim Registrieren (DB)."
+
+    return True, f"Registrierung erfolgreich. Club erkannt: {club_row['name']}"
 
     @staticmethod
     def get_by_username(username):
