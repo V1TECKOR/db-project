@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h1 class="auth-title">Neues Konto erstellen</h1>
+
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form action="{{ url_for('register') }}" method="post">
+
+      <div class="form-group">
+        <label>Vorname</label>
+        <input type="text" class="form-control" name="first_name" required>
+      </div>
+
+      <div class="form-group">
+        <label>Nachname</label>
+        <input type="text" class="form-control" name="last_name" required>
+      </div>
+
+      <div class="form-group">
+        <label>E-Mail</label>
+        <input type="email" class="form-control" name="email" required>
+      </div>
+
+      <div class="form-group">
+        <label>Lizenznummer</label>
+        <input type="text" class="form-control" name="license_no" required>
+        <p class="help-block">Beispiel fürs MVP: RIE-1001</p>
+      </div>
+
+      <div class="form-group">
+        <label>Passwort</label>
+        <input type="password" class="form-control" name="password" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Registrieren</button>
+    </form>
+
+    <p class="auth-footer-text">
+      Du hast bereits ein Konto?
+      <a href="{{ url_for('login') }}">Einloggen</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
