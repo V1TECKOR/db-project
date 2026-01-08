@@ -10,16 +10,15 @@
 
 <div class="row">
 
-  <div class="col-md-4">
-    <div class="panel panel-default">
-      <div class="panel-heading"><strong>🏟 Mein Club</strong></div>
-      <div class="panel-body">
-        <p>Du bist bei deinem Club registriert.</p>
-        <p><em>(Club-System kommt als Nächstes)</em></p>
-        <a class="btn btn-primary btn-block disabled">Club anzeigen</a>
-      </div>
-    </div>
-  </div>
+  <div class="panel-body">
+  {% if club_name %}
+    <p><strong>Club:</strong> {{ club_name }}</p>
+    <p><em>Automatisch erkannt über deine Lizenznummer ✅</em></p>
+  {% else %}
+    <p><strong>Club:</strong> nicht erkannt</p>
+    <p><em>Keine gültige Lizenznummer gefunden.</em></p>
+  {% endif %}
+</div>
 
   <div class="col-md-4">
     <div class="panel panel-default">
