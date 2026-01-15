@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-start mb-3">
+<!-- ===============================
+     Header
+================================ -->
+<div class="d-flex justify-content-between align-items-start mb-4">
   <div>
     <h2 class="mb-1">{{ team_name }} vs {{ match.opponent }}</h2>
     <div class="text-muted">
@@ -18,8 +21,10 @@
   </div>
 </div>
 
-<!-- Availability -->
-<div class="card mb-3">
+<!-- ===============================
+     Availability (ALL members)
+================================ -->
+<div class="card mb-4">
   <h5 class="mb-3">Availability</h5>
 
   {% if date_options %}
@@ -29,8 +34,8 @@
       <div class="row g-2">
         {% for d in date_options %}
           <div class="col-md-4">
-            <label class="p-3 d-block"
-                   style="border:1px solid rgba(255,255,255,.08); border-radius: 14px; cursor:pointer;">
+            <label class="d-block p-3"
+                   style="border:1px solid rgba(255,255,255,.08); border-radius:14px; cursor:pointer;">
               <input type="checkbox" name="date_ids" value="{{ d.id }}"
                      {% if d.id in my_date_ids %}checked{% endif %}>
               <span class="ms-2">{{ d.proposed_datetime }}</span>
@@ -45,10 +50,10 @@
     {% if is_captain and match.status == "planned" %}
       <hr style="border-color: rgba(255,255,255,.08);">
 
-      <h6 class="text-muted mb-2">Captain Summary (who is available)</h6>
+      <h6 class="text-muted mb-2">Captain Summary</h6>
       {% for s in date_summaries %}
         <div class="p-3 mb-2"
-             style="border:1px solid rgba(255,255,255,.08); border-radius: 14px;">
+             style="border:1px solid rgba(255,255,255,.08); border-radius:14px;">
           <div class="d-flex justify-content-between align-items-start gap-3">
             <div>
               <div class="fw-semibold">{{ s.proposed_datetime }}</div>
@@ -58,20 +63,21 @@
             <form method="post" action="{{ url_for('match_confirm_date') }}">
               <input type="hidden" name="match_id" value="{{ match.id }}">
               <input type="hidden" name="date_id" value="{{ s.id }}">
-              <button class="btn btn-sm btn-outline-primary">Confirm this date</button>
+              <button class="btn btn-sm btn-outline-primary">Confirm date</button>
             </form>
           </div>
         </div>
       {% endfor %}
     {% endif %}
-
   {% else %}
-    <div class="text-muted">No proposed dates yet.</div>
+    <div class="text-muted">No dates proposed yet.</div>
   {% endif %}
 </div>
 
-<!-- Lineup -->
-<div class="card mb-3">
+<!-- ===============================
+     Lineup
+================================ -->
+<div class="card mb-4">
   <h5 class="mb-3">Lineup</h5>
 
   {% if is_captain %}
@@ -81,8 +87,8 @@
       <div class="row g-2">
         {% for m in members %}
           <div class="col-md-4">
-            <label class="p-3 d-block"
-                   style="border:1px solid rgba(255,255,255,.08); border-radius: 14px; cursor:pointer;">
+            <label class="d-block p-3"
+                   style="border:1px solid rgba(255,255,255,.08); border-radius:14px; cursor:pointer;">
               <input type="checkbox" name="player_ids" value="{{ m.id }}"
                      {% if m.id in lineup_ids %}checked{% endif %}>
               <span class="ms-2">{{ m.first_name }} {{ m.last_name }}</span>
@@ -113,7 +119,7 @@
       <div class="mb-2">
         You are selected in the lineup.
         {% if confirmed %}
-          <span class="text-success fw-semibold">Confirmed ✅</span>
+          <span class="text-success fw-semibold">Confirmed</span>
         {% else %}
           <span class="text-muted">Not confirmed yet</span>
         {% endif %}
@@ -125,13 +131,15 @@
         <button class="btn btn-outline-danger" name="response" value="no">I can’t play</button>
       </form>
     {% else %}
-      <div class="text-muted">Captain has not selected lineup yet (or you are not selected).</div>
+      <div class="text-muted">Lineup not set yet.</div>
     {% endif %}
   {% endif %}
 </div>
 
-<!-- Volunteers -->
-<div class="card mb-3">
+<!-- ===============================
+     Volunteers (EVERYONE)
+================================ -->
+<div class="card mb-4">
   <h5 class="mb-3">Volunteers (first come, first served)</h5>
 
   <div class="row g-2">
@@ -140,11 +148,12 @@
         <div class="p-3"
              style="border:1px solid rgba(255,255,255,.08); border-radius:14px;">
           <div class="fw-semibold">{{ task }}</div>
+
           <div class="text-muted mb-2">
             {% if task_assignments.get(task) %}
-              Taken by: <strong>{{ task_assignments.get(task) }}</strong>
+              Taken by <strong>{{ task_assignments.get(task) }}</strong>
             {% else %}
-              Free — be the first 🙂
+              Free — anyone can take this
             {% endif %}
           </div>
 
@@ -152,7 +161,9 @@
             <form method="post" action="{{ url_for('match_task') }}">
               <input type="hidden" name="match_id" value="{{ match.id }}">
               <input type="hidden" name="task" value="{{ task }}">
-              <button class="btn btn-primary btn-sm w-100">I take {{ task }}</button>
+              <button class="btn btn-primary btn-sm w-100">
+                I volunteer for {{ task }}
+              </button>
             </form>
           {% endif %}
         </div>
@@ -161,8 +172,10 @@
   </div>
 </div>
 
-<!-- Messages -->
-<div class="card mb-3">
+<!-- ===============================
+     Messages (EVERYONE)
+================================ -->
+<div class="card mb-4">
   <h5 class="mb-3">Messages</h5>
 
   <form method="post" action="{{ url_for('match_message') }}" class="mb-3">
@@ -173,11 +186,13 @@
     </div>
   </form>
 
-  <div style="max-height: 360px; overflow:auto;">
+  <div style="max-height:360px; overflow:auto;">
     {% if messages %}
       {% for msg in messages %}
         <div class="mb-2 p-2" style="border-bottom:1px solid rgba(255,255,255,.08);">
-          <div class="small text-muted">{{ msg.created_at }} • {{ msg.author }}</div>
+          <div class="small text-muted">
+            {{ msg.created_at }} • {{ msg.author }}
+          </div>
           <div>{{ msg.content }}</div>
         </div>
       {% endfor %}
