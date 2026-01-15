@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 from dotenv import load_dotenv
 
 from flask import Flask, render_template, request, redirect, url_for, flash
@@ -28,20 +27,25 @@ mail = Mail(app)
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
+
 def send_email(to_email, subject, body):
+    """Send email if SMTP env vars are configured. Otherwise do nothing."""
     if not app.config.get("MAIL_SERVER") or not app.config.get("MAIL_USERNAME"):
         return
     try:
         msg = Message(subject=subject, recipients=[to_email], body=body)
         mail.send(msg)
     except Exception:
+        # avoid breaking UX if SMTP misconfigured
         pass
+
 
 @app.get("/")
 def landing():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard"))
     return render_template("landing.html")
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -53,6 +57,7 @@ def login():
             return redirect(url_for("dashboard"))
         flash("Login fehlgeschlagen.", "danger")
     return render_template("login.html")
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -70,11 +75,13 @@ def register():
         flash(msg, "danger")
     return render_template("register.html")
 
+
 @app.get("/logout")
 @login_required
 def logout():
     logout_user()
     return redirect(url_for("landing"))
+
 
 @app.get("/dashboard")
 @login_required
@@ -109,6 +116,7 @@ def dashboard():
         is_captain_or_admin=is_captain_or_admin
     )
 
+
 @app.get("/teams")
 @login_required
 def teams():
@@ -125,14 +133,13 @@ def teams():
         ORDER BY t.name
     """, (current_user.id, current_user.club_id))
 
-    # Membership status for current user
     mem = db_read("SELECT team_id, is_approved FROM team_membership WHERE user_id=%s", (current_user.id,))
     mem_map = {m["team_id"]: m for m in mem}
 
-    teams = []
+    teams_list = []
     for r in rows:
         tid = r["id"]
-        teams.append({
+        teams_list.append({
             "id": tid,
             "name": r["name"],
             "captain_name": r["captain_name"],
@@ -142,19 +149,51 @@ def teams():
         })
 
     is_captain_or_admin = current_user.role in ("captain", "club_admin")
-    return render_template("teams.html", teams=teams, club_name=club_name, is_captain_or_admin=is_captain_or_admin)
+    return render_template("teams.html", teams=teams_list, club_name=club_name, is_captain_or_admin=is_captain_or_admin)
+
+
+# =========================
+# Team creation (CAPTAIN ONLY)
+# =========================
 
 @app.get("/team/create")
 @login_required
-def team_create():
+def team_create_route():
     if current_user.role not in ("captain", "club_admin"):
-        # allow player to become captain by creating a team
-        pass
-    return render_template("team_create_simple.html")  # we will render inline fallback below
+        flash("Nur Captains können Teams erstellen. Bitte wende dich an deinen Club Admin.", "danger")
+        return redirect(url_for("teams"))
+
+    return """
+    <!doctype html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Team erstellen</title>
+    </head><body class="p-4" style="background:#f5f7fa;">
+    <div class="container" style="max-width:720px;">
+      <h3 class="mb-3">Team erstellen</h3>
+      <div class="text-muted mb-3">
+        Nur Benutzer mit Rolle <strong>captain</strong> oder <strong>club_admin</strong> können Teams erstellen.
+      </div>
+      <form method="post" action="/team/create" class="row g-2">
+        <div class="col-md-8">
+          <input class="form-control" name="name" placeholder="Teamname" required>
+        </div>
+        <div class="col-md-4">
+          <button class="btn btn-primary w-100">Erstellen</button>
+        </div>
+      </form>
+      <div class="mt-3"><a href="/teams">← zurück</a></div>
+    </div></body></html>
+    """
+
 
 @app.post("/team/create")
 @login_required
-def team_create_post():
+def team_create_route_post():
+    if current_user.role not in ("captain", "club_admin"):
+        flash("Nur Captains können Teams erstellen.", "danger")
+        return redirect(url_for("teams"))
+
     name = request.form["name"].strip()
     if not name:
         flash("Teamname fehlt.", "danger")
@@ -168,12 +207,10 @@ def team_create_post():
     db_write("INSERT INTO team_membership (user_id,team_id,is_approved,approved_at) VALUES (%s,%s,1,NOW())",
              (current_user.id, team_id))
 
-    # ensure role captain
-    if current_user.role == "player":
-        db_write("UPDATE users SET role='captain' WHERE id=%s", (current_user.id,))
-
-    flash("Team erstellt. Du bist Captain.", "success")
+    # IMPORTANT: no auto-promote here
+    flash("Team erstellt.", "success")
     return redirect(url_for("team_manage", team_id=team_id))
+
 
 @app.post("/team/join")
 @login_required
@@ -188,16 +225,22 @@ def team_join():
     db_write("INSERT INTO team_membership (user_id,team_id,is_approved) VALUES (%s,%s,0)",
              (current_user.id, team_id))
 
-    # Email captain
     captain = db_read("""
-        SELECT u.email, u.first_name FROM teams t JOIN users u ON u.id=t.captain_id WHERE t.id=%s
+        SELECT u.email, u.first_name
+        FROM teams t
+        JOIN users u ON u.id=t.captain_id
+        WHERE t.id=%s
     """, (team_id,), single=True)
     if captain:
-        send_email(captain["email"], "Neue Team-Anfrage",
-                   f"Hallo {captain['first_name']},\n\nEs gibt eine neue Beitrittsanfrage in deinem Team.\n\n— Interclub Organizer")
+        send_email(
+            captain["email"],
+            "Neue Team-Anfrage",
+            f"Hallo {captain['first_name']},\n\nEs gibt eine neue Beitrittsanfrage in deinem Team.\n\n— Interclub Organizer"
+        )
 
     flash("Beitrittsanfrage gesendet.", "success")
     return redirect(url_for("teams"))
+
 
 def require_captain(team_id: int):
     team = db_read("SELECT * FROM teams WHERE id=%s", (team_id,), single=True)
@@ -206,6 +249,7 @@ def require_captain(team_id: int):
     if team["captain_id"] != current_user.id and current_user.role != "club_admin":
         return None
     return team
+
 
 @app.get("/team/<int:team_id>/manage")
 @login_required
@@ -222,7 +266,7 @@ def team_manage(team_id):
         ORDER BY u.last_name
     """, (team_id,))
 
-    requests = db_read("""
+    requests_rows = db_read("""
         SELECT u.id,u.first_name,u.last_name,u.email
         FROM team_membership tm
         JOIN users u ON u.id=tm.user_id
@@ -237,7 +281,8 @@ def team_manage(team_id):
         ORDER BY created_at DESC
     """, (team_id,))
 
-    return render_template("team_manage.html", team=team, members=members, requests=requests, matches=matches)
+    return render_template("team_manage.html", team=team, members=members, requests=requests_rows, matches=matches)
+
 
 @app.post("/team/requests")
 @login_required
@@ -251,19 +296,24 @@ def team_requests():
         return "Unauthorized", 403
 
     if action == "approve":
-        db_write("UPDATE team_membership SET is_approved=1, approved_at=NOW() WHERE user_id=%s AND team_id=%s",
-                 (user_id, team_id))
-        # email user
+        db_write(
+            "UPDATE team_membership SET is_approved=1, approved_at=NOW() WHERE user_id=%s AND team_id=%s",
+            (user_id, team_id)
+        )
         u = db_read("SELECT email, first_name FROM users WHERE id=%s", (user_id,), single=True)
         if u:
-            send_email(u["email"], "Team-Anfrage bestätigt",
-                       f"Hallo {u['first_name']},\n\nDeine Anfrage wurde akzeptiert.\n\n— Interclub Organizer")
+            send_email(
+                u["email"],
+                "Team-Anfrage bestätigt",
+                f"Hallo {u['first_name']},\n\nDeine Anfrage wurde akzeptiert.\n\n— Interclub Organizer"
+            )
         flash("Anfrage approved.", "success")
     else:
         db_write("DELETE FROM team_membership WHERE user_id=%s AND team_id=%s", (user_id, team_id))
         flash("Anfrage denied.", "warning")
 
     return redirect(url_for("team_manage", team_id=team_id))
+
 
 @app.post("/match/create")
 @login_required
@@ -286,18 +336,21 @@ def match_create():
             db_write("INSERT INTO match_dates (match_id, proposed_datetime) VALUES (%s, %s)",
                      (match_id, d.replace("T", " ")))
 
-    # notify members
     members = db_read("""
         SELECT u.email, u.first_name
         FROM team_membership tm JOIN users u ON u.id=tm.user_id
         WHERE tm.team_id=%s AND tm.is_approved=1
     """, (team_id,))
     for m in members:
-        send_email(m["email"], "Neues Match geplant",
-                   f"Hallo {m['first_name']},\n\nEin neues Match wurde geplant. Bitte trage deine Verfügbarkeit ein.\n\n— Interclub Organizer")
+        send_email(
+            m["email"],
+            "Neues Match geplant",
+            f"Hallo {m['first_name']},\n\nEin neues Match wurde geplant. Bitte trage deine Verfügbarkeit ein.\n\n— Interclub Organizer"
+        )
 
     flash("Match erstellt. Verfügbarkeiten können eingetragen werden.", "success")
     return redirect(url_for("match_detail", match_id=match_id))
+
 
 def require_match_member(match_id: int):
     row = db_read("""
@@ -313,6 +366,7 @@ def require_match_member(match_id: int):
     if not mem and current_user.role != "club_admin":
         return None, None
     return row, row["team_name"]
+
 
 @app.get("/match/<int:match_id>")
 @login_required
@@ -332,7 +386,6 @@ def match_detail(match_id):
     """, (match_id, current_user.id))
     my_date_ids = set([r["id"] for r in my_av])
 
-    # captain summaries
     date_summaries = []
     if is_captain and match["status"] == "planned":
         for d in date_options:
@@ -407,6 +460,7 @@ def match_detail(match_id):
         messages=messages
     )
 
+
 @app.post("/match/availability")
 @login_required
 def match_availability():
@@ -417,7 +471,6 @@ def match_availability():
 
     selected = set([int(x) for x in request.form.getlist("date_ids")])
 
-    # clear existing
     db_write("""
         DELETE a FROM availability a
         JOIN match_dates md ON md.id=a.match_date_id
@@ -430,6 +483,7 @@ def match_availability():
 
     flash("Verfügbarkeit gespeichert.", "success")
     return redirect(url_for("match_detail", match_id=match_id))
+
 
 @app.post("/match/confirm_date")
 @login_required
@@ -457,6 +511,7 @@ def match_confirm_date():
     flash("Datum bestätigt. Jetzt Lineup & Logistik.", "success")
     return redirect(url_for("match_detail", match_id=match_id))
 
+
 @app.post("/match/set_lineup")
 @login_required
 def match_set_lineup():
@@ -480,6 +535,7 @@ def match_set_lineup():
     flash("Lineup gespeichert. Spieler bestätigen selbst.", "success")
     return redirect(url_for("match_detail", match_id=match_id))
 
+
 @app.post("/match/confirm_lineup")
 @login_required
 def match_confirm_lineup():
@@ -498,6 +554,7 @@ def match_confirm_lineup():
         flash("Du kannst nicht spielen (Captain sieht es).", "warning")
 
     return redirect(url_for("match_detail", match_id=match_id))
+
 
 @app.post("/match/task")
 @login_required
@@ -520,6 +577,7 @@ def match_task():
     flash(f"Du übernimmst: {task}", "success")
     return redirect(url_for("match_detail", match_id=match_id))
 
+
 @app.post("/match/message")
 @login_required
 def match_message():
@@ -538,42 +596,6 @@ def match_message():
              (match_id, current_user.id, content))
     return redirect(url_for("match_detail", match_id=match_id))
 
-# Small helper page: team create (since we referenced team_create_simple.html)
-@app.get("/team/create_simple")
-@login_required
-def team_create_simple():
-    return """
-    <h2>Create Team</h2>
-    <form method="post" action="/team/create">
-      <input name="name" placeholder="Team name" required>
-      <button>Create</button>
-    </form>
-    """
-
-# Map nicer URL for the button
-@app.get("/team/create")
-@login_required
-def team_create_route():
-    # render minimal creation page using bootstrap (no separate template needed)
-    return """
-    <!doctype html><html><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    </head><body class="p-4">
-    <div class="container">
-      <h3 class="mb-3">Team erstellen</h3>
-      <form method="post" action="/team/create" class="row g-2">
-        <div class="col-md-8"><input class="form-control" name="name" placeholder="Teamname" required></div>
-        <div class="col-md-4"><button class="btn btn-primary w-100">Erstellen</button></div>
-      </form>
-      <div class="mt-3"><a href="/teams">← zurück</a></div>
-    </div></body></html>
-    """
-
-@app.post("/team/create")
-@login_required
-def team_create_route_post():
-    return team_create_post()
 
 if __name__ == "__main__":
     app.run(debug=True)
