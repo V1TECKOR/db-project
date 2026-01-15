@@ -3,104 +3,150 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h3 class="fw-bold mb-0">{{ team.name }}</h3>
-    <div class="text-white-50">Captain-Bereich</div>
+    <h2 class="mb-1">{{ team.name }}</h2>
+    <div class="text-muted">Captain tools • Manage members, requests & matches</div>
   </div>
-  <a class="btn btn-outline-light" href="{{ url_for('teams') }}">← zurück</a>
+
+  <form method="post"
+        action="{{ url_for('team_delete', team_id=team.id) }}"
+        onsubmit="return confirm('Team wirklich löschen? Alle Matches, Messages, Tasks etc. werden gelöscht!');">
+    <button class="btn btn-outline-danger">Delete Team</button>
+  </form>
 </div>
 
-<div class="row g-4">
+<div class="row g-3">
+  <!-- Members -->
   <div class="col-lg-6">
-    <div class="card glass p-4">
-      <h5 class="fw-semibold mb-3">Mitglieder</h5>
+    <div class="card">
+      <h5 class="mb-3">Members</h5>
       {% if members %}
-        <ul class="text-white-50 mb-0">
+        <div class="list-group">
           {% for m in members %}
-            <li>{{ m.first_name }} {{ m.last_name }} <span class="text-white-50 small">({{ m.email }})</span></li>
+            <div class="list-group-item d-flex justify-content-between align-items-center"
+                 style="background: transparent; color: inherit; border-color: rgba(255,255,255,.08);">
+              <div>
+                <div class="fw-semibold">{{ m.first_name }} {{ m.last_name }}</div>
+                <div class="text-muted small">{{ m.email }}</div>
+              </div>
+            </div>
           {% endfor %}
-        </ul>
+        </div>
       {% else %}
-        <div class="text-white-50">Noch keine Mitglieder.</div>
+        <div class="text-muted">No members yet.</div>
       {% endif %}
     </div>
+  </div>
 
-    <div class="card glass p-4 mt-4">
-      <h5 class="fw-semibold mb-3">Beitrittsanfragen</h5>
+  <!-- Requests -->
+  <div class="col-lg-6">
+    <div class="card">
+      <h5 class="mb-3">Join Requests</h5>
+
       {% if requests %}
-        {% for r in requests %}
-          <div class="d-flex justify-content-between align-items-center border border-white border-opacity-10 rounded-3 p-2 mb-2">
-            <div>
-              <div class="fw-semibold">{{ r.first_name }} {{ r.last_name }}</div>
-              <div class="text-white-50 small">{{ r.email }}</div>
+        <div class="list-group">
+          {% for r in requests %}
+            <div class="list-group-item d-flex justify-content-between align-items-center"
+                 style="background: transparent; color: inherit; border-color: rgba(255,255,255,.08);">
+              <div>
+                <div class="fw-semibold">{{ r.first_name }} {{ r.last_name }}</div>
+                <div class="text-muted small">{{ r.email }}</div>
+              </div>
+
+              <div class="d-flex gap-2">
+                <form method="post" action="{{ url_for('team_requests') }}">
+                  <input type="hidden" name="team_id" value="{{ team.id }}">
+                  <input type="hidden" name="user_id" value="{{ r.id }}">
+                  <input type="hidden" name="action" value="approve">
+                  <button class="btn btn-sm btn-primary">Approve</button>
+                </form>
+
+                <form method="post" action="{{ url_for('team_requests') }}">
+                  <input type="hidden" name="team_id" value="{{ team.id }}">
+                  <input type="hidden" name="user_id" value="{{ r.id }}">
+                  <input type="hidden" name="action" value="deny">
+                  <button class="btn btn-sm btn-outline-danger">Deny</button>
+                </form>
+              </div>
             </div>
-            <form method="post" action="{{ url_for('team_requests') }}" class="d-flex gap-2">
-              <input type="hidden" name="team_id" value="{{ team.id }}">
-              <input type="hidden" name="user_id" value="{{ r.id }}">
-              <button class="btn btn-success btn-sm" name="action" value="approve">Approve</button>
-              <button class="btn btn-danger btn-sm" name="action" value="deny">Deny</button>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-muted">No pending requests.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Create Match -->
+<div class="card mt-3">
+  <h5 class="mb-3">Create Match</h5>
+
+  <form method="post" action="{{ url_for('match_create') }}">
+    <input type="hidden" name="team_id" value="{{ team.id }}">
+
+    <div class="row g-2 mb-2">
+      <div class="col-md-6">
+        <label class="form-label text-muted">Opponent</label>
+        <input class="form-control" name="opponent" placeholder="e.g., TC Example" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label text-muted">Location</label>
+        <input class="form-control" name="location" placeholder="e.g., Home / Away / Court info" required>
+      </div>
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label text-muted">Proposed Dates (optional)</label>
+      <div class="row g-2">
+        <div class="col-md-4"><input class="form-control" type="datetime-local" name="proposal_dates"></div>
+        <div class="col-md-4"><input class="form-control" type="datetime-local" name="proposal_dates"></div>
+        <div class="col-md-4"><input class="form-control" type="datetime-local" name="proposal_dates"></div>
+      </div>
+      <div class="text-muted small mt-2">Players can mark availability after you create the match.</div>
+    </div>
+
+    <button class="btn btn-primary">Create Match</button>
+  </form>
+</div>
+
+<!-- Matches -->
+<div class="card mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0">Matches</h5>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+  </div>
+
+  {% if matches %}
+    {% for m in matches %}
+      <div class="p-3 mb-2"
+           style="border:1px solid rgba(255,255,255,.08); border-radius: 14px;">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <div class="fw-semibold">
+              <a href="{{ url_for('match_detail', match_id=m.id) }}">{{ m.opponent }}</a>
+            </div>
+            <div class="text-muted small">
+              {{ m.location }} • Status: {{ m.status }}
+              {% if m.final_date %} • Final: {{ m.final_date }}{% endif %}
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('match_detail', match_id=m.id) }}">Open</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('match_edit', match_id=m.id) }}">Edit</a>
+
+            <form method="post"
+                  action="{{ url_for('match_delete', match_id=m.id) }}"
+                  onsubmit="return confirm('Match wirklich löschen?');">
+              <button class="btn btn-sm btn-outline-danger">Delete</button>
             </form>
           </div>
-        {% endfor %}
-      {% else %}
-        <div class="text-white-50">Keine offenen Anfragen.</div>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="col-lg-6">
-    <div class="card glass p-4">
-      <h5 class="fw-semibold mb-3">Neues Match planen</h5>
-
-      <form method="post" action="{{ url_for('match_create') }}">
-        <input type="hidden" name="team_id" value="{{ team.id }}">
-
-        <div class="mb-3">
-          <label class="form-label">Gegner</label>
-          <input class="form-control" name="opponent" required>
         </div>
-
-        <div class="mb-3">
-          <label class="form-label">Ort</label>
-          <select class="form-select" name="location">
-            <option>Home</option>
-            <option>Away</option>
-            <option>Other</option>
-          </select>
-        </div>
-
-        <label class="form-label">Datumsoptionen (min. 1)</label>
-        <input class="form-control mb-2" type="datetime-local" name="proposal_dates" required>
-        <input class="form-control mb-2" type="datetime-local" name="proposal_dates">
-        <input class="form-control mb-3" type="datetime-local" name="proposal_dates">
-
-        <button class="btn btn-primary w-100">Match erstellen</button>
-      </form>
-    </div>
-
-    <div class="card glass p-4 mt-4">
-      <h5 class="fw-semibold mb-2">Matches</h5>
-      {% if matches %}
-        <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
-            <thead><tr><th>Opponent</th><th>Status</th><th>Final</th><th></th></tr></thead>
-            <tbody>
-              {% for m in matches %}
-                <tr>
-                  <td>{{ m.opponent }}</td>
-                  <td><span class="badge badge-soft rounded-pill">{{ m.status }}</span></td>
-                  <td>{{ m.final_date or '—' }}</td>
-                  <td><a class="btn btn-sm btn-outline-light" href="{{ url_for('match_detail', match_id=m.id) }}">Open</a></td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <div class="text-white-50">Noch keine Matches.</div>
-      {% endif %}
-    </div>
-
-  </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="text-muted">No matches yet.</div>
+  {% endif %}
 </div>
 
 {% endblock %}
