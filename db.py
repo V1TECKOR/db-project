@@ -11,7 +11,7 @@ DB_CONFIG = {
     "database": os.getenv("DB_DATABASE"),
 }
 
-_pool = pooling.MySQLConnectionPool(pool_name="interclub_pool", pool_size=5, **DB_CONFIG)
+_pool = pooling.MySQLConnectionPool(pool_name="interclub_pool", pool_size=2, **DB_CONFIG)
 
 def _conn():
     return _pool.get_connection()

@@ -22,7 +22,7 @@
       <div class="d-grid gap-2">
         <a class="btn btn-outline-light" href="{{ url_for('teams') }}">Teams ansehen</a>
         {% if is_captain_or_admin %}
-          <a class="btn btn-primary" href="{{ url_for('team_create') }}">Team erstellen</a>
+          <a class="btn btn-primary" href="{{ url_for('team_create_route') }}">Team erstellen</a>
         {% endif %}
       </div>
     </div>

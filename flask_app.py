@@ -184,10 +184,8 @@ def team_create_route():
       </form>
       <div class="mt-3"><a href="/teams">← zurück</a></div>
     </div></body></html>
-    """
-
-
-@app.post("/team/create")
+    """	
+app.post("/team/create")
 @login_required
 def team_create_route_post():
     if current_user.role not in ("captain", "club_admin"):
@@ -199,9 +197,31 @@ def team_create_route_post():
         flash("Teamname fehlt.", "danger")
         return redirect(url_for("teams"))
 
-    db_write("INSERT INTO teams (club_id,name,captain_id) VALUES (%s,%s,%s)",
-             (current_user.club_id, name, current_user.id))
-    team_id = db_read("SELECT LAST_INSERT_ID() AS id", single=True)["id"]
+    db_write(
+    "INSERT INTO teams (club_id, name, captain_id) VALUES (%s, %s, %s)",
+    (current_user.club_id, name, current_user.id)
+ def team_create_route_post():
+    if current_user.role not in ("captain", "club_admin"):
+        flash("Nur Captains können Teams erstellen.", "danger")
+        return redirect(url_for("teams"))
+
+    name = request.form["name"].strip()
+    if not name:
+        flash("Teamname fehlt.", "danger")
+        return redirect(url_for("teams"))
+
+    db_write(
+    "INSERT INTO teams (club_id, name, captain_id) VALUES (%s, %s, %s)",
+    (current_user.club_id, name, current_user.id)
+)
+
+# IMPORTANT: do NOT use LAST_INSERT_ID() because db_read may use a different connection
+row = db_read(
+    "SELECT id FROM teams WHERE club_id=%s AND captain_id=%s AND name=%s ORDER BY id DESC LIMIT 1",
+    (current_user.club_id, current_user.id, name),
+    single=True
+)
+team_id = row["id"]
 
     # captain is auto-approved member
     db_write("INSERT INTO team_membership (user_id,team_id,is_approved,approved_at) VALUES (%s,%s,1,NOW())",
