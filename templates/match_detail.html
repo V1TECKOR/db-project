@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="fw-bold mb-0">vs {{ match.opponent }}</h3>
+    <div class="text-white-50">
+      Team: <span class="badge badge-soft rounded-pill">{{ team_name }}</span>
+      · Status: <span class="badge badge-soft rounded-pill">{{ match.status }}</span>
+      {% if match.final_date %} · Final: <span class="badge text-bg-success">{{ match.final_date }}</span>{% endif %}
+    </div>
+  </div>
+  <a class="btn btn-outline-light" href="{{ back_url }}">← zurück</a>
+</div>
+
+<div class="card glass p-4">
+
+  {% if match.status == 'planned' %}
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <h5 class="fw-semibold mb-3">Datumsoptionen</h5>
+
+        {% if is_captain %}
+          <div class="text-white-50 mb-3">Captain View: Siehst alle Verfügbarkeiten und kannst final bestätigen.</div>
+
+          {% for d in date_summaries %}
+            <div class="border border-white border-opacity-10 rounded-3 p-3 mb-2">
+              <div class="fw-semibold">{{ d.proposed_datetime }}</div>
+              <div class="text-white-50 small">{{ d.count }} verfügbar: {{ d.names }}</div>
+              <form method="post" action="{{ url_for('match_confirm_date') }}" class="mt-2">
+                <input type="hidden" name="match_id" value="{{ match.id }}">
+                <input type="hidden" name="date_id" value="{{ d.id }}">
+                <button class="btn btn-primary btn-sm">Datum bestätigen</button>
+              </form>
+            </div>
+          {% endfor %}
+
+        {% else %}
+          <div class="text-white-50 mb-3">Markiere alle Daten, an denen du verfügbar bist.</div>
+          <form method="post" action="{{ url_for('match_availability') }}">
+            <input type="hidden" name="match_id" value="{{ match.id }}">
+
+            {% for d in date_options %}
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="date_ids" value="{{ d.id }}"
+                       id="d{{ d.id }}" {% if d.id in my_date_ids %}checked{% endif %}>
+                <label class="form-check-label text-white-50" for="d{{ d.id }}">
+                  {{ d.proposed_datetime }}
+                </label>
+              </div>
+            {% endfor %}
+
+            <button class="btn btn-primary mt-2">Verfügbarkeit speichern</button>
+          </form>
+        {% endif %}
+      </div>
+
+      <div class="col-lg-6">
+        <h5 class="fw-semibold mb-3">Match Chat</h5>
+        <div class="border border-white border-opacity-10 rounded-3 p-3 mb-3" style="max-height: 280px; overflow:auto;">
+          {% if messages %}
+            {% for msg in messages %}
+              <div class="mb-2">
+                <div class="small text-white-50">{{ msg.created_at }} · <strong>{{ msg.author }}</strong></div>
+                <div>{{ msg.content }}</div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-white-50">Noch keine Nachrichten.</div>
+          {% endif %}
+        </div>
+
+        <form method="post" action="{{ url_for('match_message') }}">
+          <input type="hidden" name="match_id" value="{{ match.id }}">
+          <textarea class="form-control mb-2" name="content" rows="2" placeholder="Nachricht schreiben..." required></textarea>
+          <button class="btn btn-outline-light">Senden</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if match.status == 'confirmed' %}
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <h5 class="fw-semibold mb-3">Lineup</h5>
+
+        {% if is_captain %}
+          <form method="post" action="{{ url_for('match_set_lineup') }}">
+            <input type="hidden" name="match_id" value="{{ match.id }}">
+            <div class="text-white-50 mb-2">Wähle die Spieler fürs Lineup. Danach bestätigen sie selbst.</div>
+
+            {% for p in members %}
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="player_ids" value="{{ p.id }}"
+                       id="p{{ p.id }}" {% if p.id in lineup_ids %}checked{% endif %}>
+                <label class="form-check-label text-white-50" for="p{{ p.id }}">
+                  {{ p.first_name }} {{ p.last_name }}
+                </label>
+              </div>
+            {% endfor %}
+
+            <button class="btn btn-primary mt-2">Lineup speichern</button>
+          </form>
+
+          <hr class="my-3">
+          <div class="text-white-50 small">
+            Bestätigungen:
+            {% if lineup_status %}
+              <ul class="mb-0">
+                {% for ls in lineup_status %}
+                  <li>{{ ls.name }} — {% if ls.confirmed %}✅ confirmed{% else %}⏳ pending{% endif %}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              —
+            {% endif %}
+          </div>
+
+        {% else %}
+          {% if in_lineup %}
+            <div class="text-white-50">Du bist im Lineup.</div>
+            {% if confirmed %}
+              <div class="mt-2 badge text-bg-success">✅ Teilnahme bestätigt</div>
+            {% else %}
+              <form method="post" action="{{ url_for('match_confirm_lineup') }}" class="d-flex gap-2 mt-3">
+                <input type="hidden" name="match_id" value="{{ match.id }}">
+                <button class="btn btn-success" name="response" value="yes">Confirm</button>
+                <button class="btn btn-warning" name="response" value="no">Cannot play</button>
+              </form>
+            {% endif %}
+          {% else %}
+            <div class="text-white-50">Du bist nicht im Lineup (oder es ist noch nicht gesetzt).</div>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <div class="col-lg-6">
+        <h5 class="fw-semibold mb-3">Logistik</h5>
+        <div class="text-white-50 mb-2">Jemand übernimmt Balls / Drinks / Transport.</div>
+
+        {% for task in tasks %}
+          <div class="d-flex justify-content-between align-items-center border border-white border-opacity-10 rounded-3 p-2 mb-2">
+            <div class="fw-semibold">{{ task }}</div>
+            {% if task_assignments.get(task) %}
+              <div class="text-white-50 small">{{ task_assignments[task] }}</div>
+            {% else %}
+              <form method="post" action="{{ url_for('match_task') }}">
+                <input type="hidden" name="match_id" value="{{ match.id }}">
+                <input type="hidden" name="task" value="{{ task }}">
+                <button class="btn btn-outline-light btn-sm">Volunteer</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        <hr class="my-3">
+        <h6 class="fw-semibold mb-2">Match Chat</h6>
+        <div class="border border-white border-opacity-10 rounded-3 p-3 mb-3" style="max-height: 240px; overflow:auto;">
+          {% if messages %}
+            {% for msg in messages %}
+              <div class="mb-2">
+                <div class="small text-white-50">{{ msg.created_at }} · <strong>{{ msg.author }}</strong></div>
+                <div>{{ msg.content }}</div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-white-50">Noch keine Nachrichten.</div>
+          {% endif %}
+        </div>
+
+        <form method="post" action="{{ url_for('match_message') }}">
+          <input type="hidden" name="match_id" value="{{ match.id }}">
+          <textarea class="form-control mb-2" name="content" rows="2" placeholder="Nachricht schreiben..." required></textarea>
+          <button class="btn btn-outline-light">Senden</button>
+        </form>
+
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}
