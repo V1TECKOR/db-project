@@ -1,57 +1,236 @@
-:root{
-  --ic-bg: #0b1220;
-  --ic-card: rgba(255,255,255,0.06);
-  --ic-border: rgba(255,255,255,0.12);
+/* ======================================
+   Interclub – Dark Navy Premium Theme
+   Fancy, readable, high contrast
+   ====================================== */
+
+:root {
+    --bg-main: #0b1220;        /* deep navy background */
+    --bg-card: #111827;       /* slightly lighter navy cards */
+
+    --text-main: #f1f5f9;     /* very bright text */
+    --text-muted: #cbd5e1;   /* readable muted text */
+
+    --primary: #3b82f6;       /* elegant blue accent */
+    --primary-hover: #2563eb;
+
+    --border-light: #1f2937;
 }
 
-body{
-  background: radial-gradient(1200px 600px at 10% 0%, rgba(66, 135, 245, 0.18), transparent 60%),
-              radial-gradient(900px 700px at 90% 20%, rgba(56, 239, 125, 0.10), transparent 55%),
-              var(--ic-bg);
-  color: #e7eefc;
+/* -------------------------------
+   Base
+-------------------------------- */
+
+html, body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.7;
+    font-size: 16px;
 }
 
-.navbar{
-  backdrop-filter: blur(10px);
+/* -------------------------------
+   Typography
+-------------------------------- */
+
+h1, h2, h3, h4, h5 {
+    color: var(--text-main);
+    font-weight: 600;
 }
 
-.card.glass{
-  background: var(--ic-card);
-  border: 1px solid var(--ic-border);
-  border-radius: 16px;
+p, li, span, label {
+    color: var(--text-main);
 }
 
-.badge-soft{
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.18);
-  color: #e7eefc;
+.text-muted {
+    color: var(--text-muted) !important;
 }
 
-a{ color: #9cc3ff; }
-a:hover{ color: #cfe2ff; }
+/* -------------------------------
+   Links
+-------------------------------- */
 
-.form-control, .form-select{
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  color: #e7eefc;
+a {
+    color: var(--primary);
+    font-weight: 500;
 }
 
-.form-control:focus, .form-select:focus{
-  box-shadow: 0 0 0 .25rem rgba(13,110,253,.25);
+a:hover {
+    color: #60a5fa;
+    text-decoration: underline;
 }
 
-.btn-primary{
-  box-shadow: 0 10px 25px rgba(13,110,253,.18);
+/* -------------------------------
+   Cards / Containers
+-------------------------------- */
+
+.card,
+.box,
+.panel {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    padding: 1.4rem;
+    margin-bottom: 1.4rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
 }
 
-.table{
-  color: #e7eefc;
+/* -------------------------------
+   Buttons
+-------------------------------- */
+
+.btn {
+    border-radius: 10px;
+    font-weight: 600;
 }
 
-.table thead th{
-  color: #cfe2ff;
+.btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
 }
 
-hr{
-  border-color: rgba(255,255,255,0.12);
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+/* -------------------------------
+   Tables
+-------------------------------- */
+
+table {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+}
+
+th {
+    color: #93c5fd;
+    font-weight: 600;
+    border-color: var(--border-light);
+}
+
+td {
+    color: var(--text-main);
+    border-color: var(--border-light);
+}
+
+/* -------------------------------
+   Forms
+-------------------------------- */
+
+input,
+select,
+textarea {
+    background-color: #020617;
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 0.55rem 0.65rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #94a3b8;
+}
+
+/* -------------------------------
+   Alerts / flash messages
+-------------------------------- */
+
+.alert {
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+/* -------------------------------
+   Mobile
+-------------------------------- */
+
+@media (max-width: 768px) {
+    body {
+        font-size: 15px;
+    }
+}
+/* -------------------------------
+   Team name visibility fix
+-------------------------------- */
+
+/* Team titles / headings */
+.team-name,
+.team-title,
+.card h4,
+.card h5,
+table td strong,
+table td b {
+    color: #e5edff;   /* very bright blue-white */
+}
+
+/* If team name is a link */
+.team-name a,
+.card h4 a,
+.card h5 a {
+    color: #e5edff;
+}
+
+.team-name a:hover,
+.card h4 a:hover,
+.card h5 a:hover {
+    color: #93c5fd;
+}
+/* ===============================
+   Contrast & Readability Fixes
+   (Dark Navy Theme)
+================================ */
+
+/* 1) Team names in dashboard table */
+table td strong,
+table td a {
+  color: #f1f5f9 !important; /* very light gray / near-white */
+  font-weight: 600;
+}
+
+/* 2) Status text like "You are selected in the lineup" */
+.card .text-muted {
+  color: #cbd5e1 !important; /* brighter muted gray */
+}
+
+/* 3) Volunteer task titles (Balls / Drinks / Transport) */
+.card h6,
+.card .fw-semibold {
+  color: #f8fafc !important; /* almost white */
+}
+
+/* 4) Volunteer "Taken by ..." text */
+.card .small,
+.card .text-muted small {
+  color: #d1d5db !important;
+}
+
+/* 5) Messages author + timestamp */
+.messages .small,
+.messages .text-muted,
+.card .small.text-muted {
+  color: #94a3b8 !important; /* readable slate */
+}
+
+/* 6) Message content itself */
+.messages div,
+.card div {
+  color: #e5e7eb;
+}
+
+/* 7) Lineup confirmation text */
+.text-success {
+  color: #4ade80 !important; /* brighter green */
+}
+
+/* 8) Buttons on dark background */
+.btn-outline-light {
+  color: #f8fafc !important;
+  border-color: rgba(248, 250, 252, 0.4);
+}
+
+.btn-outline-light:hover {
+  background-color: rgba(248, 250, 252, 0.15);
 }
