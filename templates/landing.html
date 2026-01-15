@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4 align-items-center">
+  <div class="col-lg-7">
+    <div class="p-4 card glass">
+      <h1 class="display-6 fw-bold mb-2">Interclub Tennis Organizer</h1>
+      <p class="text-white-50 mb-3">
+        Schluss mit WhatsApp-Chaos: Teams, Verfügbarkeiten, Aufstellungen, Logistik & Kommunikation — alles an einem Ort.
+      </p>
+      <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-primary" href="{{ url_for('register') }}">Jetzt starten</a>
+        <a class="btn btn-outline-light" href="{{ url_for('login') }}">Einloggen</a>
+      </div>
+      <hr class="my-4">
+      <div class="row g-3">
+        <div class="col-md-4"><span class="badge badge-soft rounded-pill px-3 py-2">Teams & Rollen</span></div>
+        <div class="col-md-4"><span class="badge badge-soft rounded-pill px-3 py-2">Match-Planung</span></div>
+        <div class="col-md-4"><span class="badge badge-soft rounded-pill px-3 py-2">Lineups & Tasks</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="p-4 card glass">
+      <h5 class="fw-semibold">So funktioniert’s</h5>
+      <ol class="text-white-50 mb-0">
+        <li>Registrieren mit Lizenznummer → Club wird automatisch erkannt</li>
+        <li>Team beitreten → Captain bestätigt</li>
+        <li>Captain erstellt Match → ihr gebt Verfügbarkeit an</li>
+        <li>Datum fixieren → Aufstellung + Bestätigung + Logistik + Chat</li>
+      </ol>
+    </div>
+  </div>
+</div>
+{% endblock %}
