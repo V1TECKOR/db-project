@@ -187,7 +187,32 @@ def teams():
 
     is_captain_or_admin = current_user.role in ("captain", "club_admin")
     return render_template("teams.html", teams=teams_list, club_name=club_name, is_captain_or_admin=is_captain_or_admin)
+@app.get("/team/<int:team_id>")
+@login_required
+def team_view(team_id):
+    # team must belong to user's club
+    team = db_read("SELECT * FROM teams WHERE id=%s AND club_id=%s", (team_id, current_user.club_id), single=True)
+    if not team:
+        return "Not found", 404
 
+    # must be approved member OR captain OR club_admin
+    is_captain = (team["captain_id"] == current_user.id) or (current_user.role == "club_admin")
+    if not is_captain:
+        mem = db_read("""
+            SELECT * FROM team_membership
+            WHERE team_id=%s AND user_id=%s AND is_approved=1
+        """, (team_id, current_user.id), single=True)
+        if not mem:
+            return "Unauthorized", 403
+
+    matches = db_read("""
+        SELECT id, opponent, location, status, final_date
+        FROM matches
+        WHERE team_id=%s
+        ORDER BY created_at DESC
+    """, (team_id,))
+
+    return render_template("team_view.html", team=team, matches=matches, is_captain=is_captain)
 
 # ------------------------
 # Team creation (CAPTAIN ONLY)
