@@ -279,3 +279,9 @@ table td a {
 .card .table .btn-outline-light:hover {
   background-color: rgba(248, 250, 252, 0.12) !important;
 }
+/* Force-bootstrap table cells to respect dark theme (removes last white bar) */
+.card .table > :not(caption) > * > * {
+  background-color: transparent !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
