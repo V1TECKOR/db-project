@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card glass p-4">
+      <h5 class="fw-semibold mb-2">Profil</h5>
+      <div class="text-white-50">
+        <div><strong>{{ current_user.first_name }} {{ current_user.last_name }}</strong></div>
+        <div>{{ current_user.email }}</div>
+        <div class="mt-2">
+          <span class="badge badge-soft rounded-pill">Role: {{ current_user.role }}</span>
+        </div>
+        <div class="mt-2">
+          <span class="badge badge-soft rounded-pill">Club: {{ club_name or '—' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card glass p-4 mt-4">
+      <h6 class="fw-semibold mb-2">Quick Actions</h6>
+      <div class="d-grid gap-2">
+        <a class="btn btn-outline-light" href="{{ url_for('teams') }}">Teams ansehen</a>
+        {% if is_captain_or_admin %}
+          <a class="btn btn-primary" href="{{ url_for('team_create') }}">Team erstellen</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card glass p-4">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h5 class="fw-semibold mb-0">Meine Teams</h5>
+      </div>
+      {% if my_teams %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr><th>Team</th><th>Status</th><th>Aktion</th></tr>
+            </thead>
+            <tbody>
+              {% for t in my_teams %}
+              <tr>
+                <td>{{ t.name }}</td>
+                <td>
+                  {% if t.is_approved %}
+                    <span class="badge text-bg-success">approved</span>
+                  {% else %}
+                    <span class="badge text-bg-warning">pending</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if t.is_captain %}
+                    <a class="btn btn-sm btn-outline-light" href="{{ url_for('team_manage', team_id=t.id) }}">Manage</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-white-50 mb-0">Noch in keinem Team. Geh zu <a href="{{ url_for('teams') }}">Teams</a> und stelle eine Anfrage.</p>
+      {% endif %}
+    </div>
+
+    <div class="card glass p-4 mt-4">
+      <h5 class="fw-semibold mb-2">Upcoming Matches</h5>
+      {% if upcoming_matches %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Team</th><th>Opponent</th><th>Status</th><th>Datum</th><th></th></tr></thead>
+            <tbody>
+              {% for m in upcoming_matches %}
+              <tr>
+                <td>{{ m.team_name }}</td>
+                <td>{{ m.opponent }}</td>
+                <td><span class="badge badge-soft rounded-pill">{{ m.status }}</span></td>
+                <td>{{ m.final_date or '—' }}</td>
+                <td><a class="btn btn-sm btn-outline-light" href="{{ url_for('match_detail', match_id=m.id) }}">Open</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-white-50 mb-0">Noch keine Matches.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
