@@ -1,0 +1,57 @@
+:root{
+  --ic-bg: #0b1220;
+  --ic-card: rgba(255,255,255,0.06);
+  --ic-border: rgba(255,255,255,0.12);
+}
+
+body{
+  background: radial-gradient(1200px 600px at 10% 0%, rgba(66, 135, 245, 0.18), transparent 60%),
+              radial-gradient(900px 700px at 90% 20%, rgba(56, 239, 125, 0.10), transparent 55%),
+              var(--ic-bg);
+  color: #e7eefc;
+}
+
+.navbar{
+  backdrop-filter: blur(10px);
+}
+
+.card.glass{
+  background: var(--ic-card);
+  border: 1px solid var(--ic-border);
+  border-radius: 16px;
+}
+
+.badge-soft{
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #e7eefc;
+}
+
+a{ color: #9cc3ff; }
+a:hover{ color: #cfe2ff; }
+
+.form-control, .form-select{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #e7eefc;
+}
+
+.form-control:focus, .form-select:focus{
+  box-shadow: 0 0 0 .25rem rgba(13,110,253,.25);
+}
+
+.btn-primary{
+  box-shadow: 0 10px 25px rgba(13,110,253,.18);
+}
+
+.table{
+  color: #e7eefc;
+}
+
+.table thead th{
+  color: #cfe2ff;
+}
+
+hr{
+  border-color: rgba(255,255,255,0.12);
+}
