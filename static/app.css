@@ -234,3 +234,48 @@ table td a {
 .btn-outline-light:hover {
   background-color: rgba(248, 250, 252, 0.15);
 }
+
+/* ===============================
+   Dashboard "My Teams" table fix
+   - remove white table background
+   - make text/buttons readable
+================================ */
+
+/* Make bootstrap table dark inside cards */
+.card .table {
+  background: transparent !important;
+  color: #f1f5f9 !important;
+}
+
+/* Header row */
+.card .table thead th {
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: #e5e7eb !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+/* Body rows */
+.card .table tbody tr {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.card .table tbody td {
+  color: #f1f5f9 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Ensure the team name + links are readable */
+.card .table tbody td a,
+.card .table tbody td strong {
+  color: #f8fafc !important;
+}
+
+/* Make the "Open" button visible on dark row */
+.card .table .btn-outline-light {
+  color: #f8fafc !important;
+  border-color: rgba(248, 250, 252, 0.45) !important;
+}
+
+.card .table .btn-outline-light:hover {
+  background-color: rgba(248, 250, 252, 0.12) !important;
+}
