@@ -1,113 +1,72 @@
-import logging
 from flask_login import LoginManager, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import db_read, db_write
 
-# Logger für dieses Modul
-logger = logging.getLogger(__name__)
-
 login_manager = LoginManager()
 
-
 class User(UserMixin):
-    def __init__(self, id, username, password):
-        self.id = id
-        self.username = username
-        self.password = password
+    def __init__(self, row):
+        self.id = row["id"]
+        self.first_name = row["first_name"]
+        self.last_name = row["last_name"]
+        self.email = row["email"]
+        self.license_number = row["license_number"]
+        self.club_id = row["club_id"]
+        self.role = row["role"]
+        self.password_hash = row["password_hash"]
 
     @staticmethod
-    def get_by_id(user_id):
-        logger.debug("User.get_by_id() aufgerufen mit user_id=%s", user_id)
-        try:
-            row = db_read(
-                "SELECT * FROM users WHERE id = %s",
-                (user_id,),
-                single=True
-            )
-            logger.debug("User.get_by_id() DB-Ergebnis: %r", row)
-        except Exception:
-            logger.exception("Fehler bei User.get_by_id(%s)", user_id)
-            return None
-
-        if row:
-            return User(row["id"], row["username"], row["password"])
-        else:
-            logger.warning("User.get_by_id(): kein User mit id=%s gefunden", user_id)
-            return None
+    def by_id(user_id: int):
+        row = db_read("SELECT * FROM users WHERE id=%s", (user_id,), single=True)
+        return User(row) if row else None
 
     @staticmethod
-    def get_by_username(username):
-        logger.debug("User.get_by_username() aufgerufen mit username=%s", username)
-        try:
-            row = db_read(
-                "SELECT * FROM users WHERE username = %s",
-                (username,),
-                single=True
-            )
-            logger.debug("User.get_by_username() DB-Ergebnis: %r", row)
-        except Exception:
-            logger.exception("Fehler bei User.get_by_username(%s)", username)
-            return None
+    def by_email(email: str):
+        row = db_read("SELECT * FROM users WHERE email=%s", (email,), single=True)
+        return User(row) if row else None
 
-        if row:
-            return User(row["id"], row["username"], row["password"])
-        else:
-            logger.info("User.get_by_username(): kein User mit username=%s", username)
-            return None
-
-
-# Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    logger.debug("load_user() aufgerufen mit user_id=%s", user_id)
     try:
-        user = User.get_by_id(int(user_id))
-    except ValueError:
-        logger.error("load_user(): user_id=%r ist keine int", user_id)
-        return None
-
-    if user:
-        logger.debug("load_user(): User gefunden: %s (id=%s)", user.username, user.id)
-    else:
-        logger.warning("load_user(): kein User für id=%s gefunden", user_id)
-
-    return user
-
-
-# Helpers
-def register_user(username, password):
-    logger.info("register_user(): versuche neuen User '%s' anzulegen", username)
-
-    existing = User.get_by_username(username)
-    if existing:
-        logger.warning("register_user(): Username '%s' existiert bereits", username)
-        return False
-
-    hashed = generate_password_hash(password)
-    try:
-        db_write(
-            "INSERT INTO users (username, password) VALUES (%s, %s)",
-            (username, hashed)
-        )
-        logger.info("register_user(): User '%s' erfolgreich angelegt", username)
+        return User.by_id(int(user_id))
     except Exception:
-        logger.exception("Fehler beim Anlegen von User '%s'", username)
-        return False
-
-    return True
-
-
-def authenticate(username, password):
-    logger.info("authenticate(): Login-Versuch für '%s'", username)
-    user = User.get_by_username(username)
-
-    if not user:
-        logger.warning("authenticate(): kein User mit username='%s' gefunden", username)
         return None
 
-    if check_password_hash(user.password, password):
-        logger.info("authenticate(): Passwort korrekt für '%s'", username)
-        return user
+def _club_from_license(license_number: str):
+    # Match by prefix mapping: find the longest prefix that matches start of license number
+    mappings = db_read("SELECT license_prefix, club_id FROM license_club_map")
+    best = None
+    for m in mappings:
+        pref = m["license_prefix"]
+        if license_number.startswith(pref) and (best is None or len(pref) > len(best["license_prefix"])):
+            best = m
+    return best["club_id"] if best else None
 
-    logger.warning("authenticate(): falsches Passwort für '%s'", username)
+def register_user(first_name, last_name, email, license_number, password):
+    email = email.strip().lower()
+    license_number = license_number.strip()
+
+    exists = db_read("SELECT id FROM users WHERE email=%s OR license_number=%s", (email, license_number), single=True)
+    if exists:
+        return False, "Email oder Lizenznummer existiert bereits."
+
+    club_id = _club_from_license(license_number)
+    if not club_id:
+        return False, "Lizenznummer nicht bekannt: keine Club-Zuordnung (license_club_map)."
+
+    pw_hash = generate_password_hash(password)
+
+    db_write("""
+        INSERT INTO users (first_name,last_name,email,license_number,password_hash,club_id,role)
+        VALUES (%s,%s,%s,%s,%s,%s,'player')
+    """, (first_name.strip(), last_name.strip(), email, license_number, pw_hash, club_id))
+
+    return True, None
+
+def authenticate(email, password):
+    u = User.by_email(email.strip().lower())
+    if not u:
+        return None
+    if check_password_hash(u.password_hash, password):
+        return u
     return None
