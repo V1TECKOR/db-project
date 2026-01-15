@@ -13,15 +13,13 @@ load_dotenv()
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me")
 
-# Optional email config (only works if env vars set)
+# Optional email config (works if you set env vars)
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER")
 app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
 app.config["MAIL_USE_TLS"] = True
 app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
-app.config["MAIL_DEFAULT_SENDER"] = os.getenv(
-    "MAIL_DEFAULT_SENDER", app.config["MAIL_USERNAME"]
-)
+app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", app.config["MAIL_USERNAME"])
 
 mail = Mail(app)
 
@@ -30,14 +28,13 @@ login_manager.login_view = "login"
 
 
 def send_email(to_email: str, subject: str, body: str) -> None:
-    """Send email if SMTP is configured. Otherwise do nothing."""
+    """Send email if SMTP env vars are configured. Otherwise do nothing."""
     if not app.config.get("MAIL_SERVER") or not app.config.get("MAIL_USERNAME"):
         return
     try:
         msg = Message(subject=subject, recipients=[to_email], body=body)
         mail.send(msg)
     except Exception:
-        # don't break UX if SMTP misconfigured
         pass
 
 
@@ -203,13 +200,12 @@ def team_create_route():
         flash("Nur Captains können Teams erstellen. Bitte wende dich an deinen Club Admin.", "danger")
         return redirect(url_for("teams"))
 
-    # Inline page (no template needed)
     return """
     <!doctype html><html><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <title>Team erstellen</title>
-    </head><body class="p-4" style="background:#f5f7fa;">
+    </head><body class="p-4">
     <div class="container" style="max-width:720px;">
       <h3 class="mb-3">Team erstellen</h3>
       <div class="text-muted mb-3">
@@ -245,10 +241,8 @@ def team_create_route_post():
         (current_user.club_id, name, current_user.id)
     )
 
-    # SAFE across connections
     team_id = safe_get_team_id(current_user.club_id, current_user.id, name)
 
-    # captain is auto-approved member
     db_write(
         "INSERT INTO team_membership (user_id, team_id, is_approved, approved_at) "
         "VALUES (%s, %s, 1, NOW())",
@@ -257,6 +251,49 @@ def team_create_route_post():
 
     flash("Team erstellt.", "success")
     return redirect(url_for("team_manage", team_id=team_id))
+
+
+# ------------------------
+# Team delete (CAPTAIN / ADMIN)
+# ------------------------
+
+def require_captain(team_id: int):
+    team = db_read("SELECT * FROM teams WHERE id=%s", (team_id,), single=True)
+    if not team:
+        return None
+    if team["captain_id"] != current_user.id and current_user.role != "club_admin":
+        return None
+    return team
+
+
+@app.post("/team/<int:team_id>/delete")
+@login_required
+def team_delete(team_id):
+    team = require_captain(team_id)
+    if not team:
+        return "Unauthorized", 403
+
+    # Delete everything belonging to this team (manual cascade)
+    match_ids = db_read("SELECT id FROM matches WHERE team_id=%s", (team_id,))
+    for r in match_ids:
+        mid = int(r["id"])
+        # messages, tasks, lineup, availability, match_dates, matches
+        db_write("DELETE FROM match_messages WHERE match_id=%s", (mid,))
+        db_write("DELETE FROM match_tasks WHERE match_id=%s", (mid,))
+        db_write("DELETE FROM lineup WHERE match_id=%s", (mid,))
+        db_write("""
+            DELETE a FROM availability a
+            JOIN match_dates md ON md.id=a.match_date_id
+            WHERE md.match_id=%s
+        """, (mid,))
+        db_write("DELETE FROM match_dates WHERE match_id=%s", (mid,))
+        db_write("DELETE FROM matches WHERE id=%s", (mid,))
+
+    db_write("DELETE FROM team_membership WHERE team_id=%s", (team_id,))
+    db_write("DELETE FROM teams WHERE id=%s", (team_id,))
+
+    flash("Team gelöscht.", "success")
+    return redirect(url_for("teams"))
 
 
 # ------------------------
@@ -281,7 +318,6 @@ def team_join():
         (current_user.id, team_id)
     )
 
-    # Email captain
     captain = db_read("""
         SELECT u.email, u.first_name
         FROM teams t
@@ -298,19 +334,6 @@ def team_join():
 
     flash("Beitrittsanfrage gesendet.", "success")
     return redirect(url_for("teams"))
-
-
-# ------------------------
-# Captain gate
-# ------------------------
-
-def require_captain(team_id: int):
-    team = db_read("SELECT * FROM teams WHERE id=%s", (team_id,), single=True)
-    if not team:
-        return None
-    if team["captain_id"] != current_user.id and current_user.role != "club_admin":
-        return None
-    return team
 
 
 # ------------------------
@@ -332,7 +355,6 @@ def team_manage(team_id):
         ORDER BY u.last_name
     """, (team_id,))
 
-    # Safer ORDER BY (avoids crashing if requested_at column differs)
     requests_rows = db_read("""
         SELECT u.id,u.first_name,u.last_name,u.email
         FROM team_membership tm
@@ -342,7 +364,7 @@ def team_manage(team_id):
     """, (team_id,))
 
     matches = db_read("""
-        SELECT id, opponent, status, final_date
+        SELECT id, opponent, status, final_date, location
         FROM matches
         WHERE team_id=%s
         ORDER BY created_at DESC
@@ -368,7 +390,6 @@ def team_requests():
             "WHERE user_id=%s AND team_id=%s",
             (user_id, team_id)
         )
-
         u = db_read("SELECT email, first_name FROM users WHERE id=%s", (user_id,), single=True)
         if u:
             send_email(
@@ -376,13 +397,9 @@ def team_requests():
                 "Team-Anfrage bestätigt",
                 f"Hallo {u['first_name']},\n\nDeine Anfrage wurde akzeptiert.\n\n— Interclub Organizer"
             )
-
         flash("Anfrage approved.", "success")
     else:
-        db_write(
-            "DELETE FROM team_membership WHERE user_id=%s AND team_id=%s",
-            (user_id, team_id)
-        )
+        db_write("DELETE FROM team_membership WHERE user_id=%s AND team_id=%s", (user_id, team_id))
         flash("Anfrage denied.", "warning")
 
     return redirect(url_for("team_manage", team_id=team_id))
@@ -407,8 +424,6 @@ def match_create():
         "INSERT INTO matches (team_id, opponent, location) VALUES (%s, %s, %s)",
         (team_id, opponent, location)
     )
-
-    # SAFE across connections
     match_id = safe_get_match_id(team_id, opponent, location)
 
     dates = request.form.getlist("proposal_dates")
@@ -419,13 +434,11 @@ def match_create():
                 (match_id, d.replace("T", " "))
             )
 
-    # notify members
     members = db_read("""
         SELECT u.email, u.first_name
         FROM team_membership tm JOIN users u ON u.id=tm.user_id
         WHERE tm.team_id=%s AND tm.is_approved=1
     """, (team_id,))
-
     for m in members:
         send_email(
             m["email"],
@@ -438,14 +451,13 @@ def match_create():
 
 
 # ------------------------
-# Match access gate
+# Match gates
 # ------------------------
 
 def require_match_member(match_id: int):
     row = db_read("""
         SELECT m.*, t.name AS team_name, t.captain_id
-        FROM matches m
-        JOIN teams t ON t.id=m.team_id
+        FROM matches m JOIN teams t ON t.id=m.team_id
         WHERE m.id=%s
     """, (match_id,), single=True)
     if not row:
@@ -462,8 +474,21 @@ def require_match_member(match_id: int):
     return row, row["team_name"]
 
 
+def require_match_captain(match_id: int):
+    row = db_read("""
+        SELECT m.*, t.captain_id
+        FROM matches m JOIN teams t ON t.id=m.team_id
+        WHERE m.id=%s
+    """, (match_id,), single=True)
+    if not row:
+        return None
+    if row["captain_id"] != current_user.id and current_user.role != "club_admin":
+        return None
+    return row
+
+
 # ------------------------
-# Match detail
+# Match detail (players can volunteer + message)
 # ------------------------
 
 @app.get("/match/<int:match_id>")
@@ -475,21 +500,15 @@ def match_detail(match_id):
 
     is_captain = (match["captain_id"] == current_user.id) or (current_user.role == "club_admin")
 
-    date_options = db_read(
-        "SELECT * FROM match_dates WHERE match_id=%s ORDER BY proposed_datetime",
-        (match_id,)
-    )
-
+    date_options = db_read("SELECT * FROM match_dates WHERE match_id=%s ORDER BY proposed_datetime", (match_id,))
     my_av = db_read("""
         SELECT md.id
         FROM availability a
         JOIN match_dates md ON md.id=a.match_date_id
         WHERE md.match_id=%s AND a.user_id=%s AND a.available=1
     """, (match_id, current_user.id))
-
     my_date_ids = {r["id"] for r in my_av}
 
-    # captain summaries
     date_summaries = []
     if is_captain and match["status"] == "planned":
         for d in date_options:
@@ -524,10 +543,7 @@ def match_detail(match_id):
         for r in lineup_rows:
             u = db_read("SELECT first_name,last_name FROM users WHERE id=%s", (r["user_id"],), single=True)
             if u:
-                lineup_status.append({
-                    "name": f"{u['first_name']} {u['last_name']}",
-                    "confirmed": bool(r["confirmed"])
-                })
+                lineup_status.append({"name": f"{u['first_name']} {u['last_name']}", "confirmed": bool(r["confirmed"])})
 
     tasks = ["Balls", "Drinks", "Transport"]
     task_rows = db_read("""
@@ -569,7 +585,120 @@ def match_detail(match_id):
 
 
 # ------------------------
-# Availability submit
+# Captain edits match (opponent/location + reset proposed dates)
+# ------------------------
+
+@app.get("/match/<int:match_id>/edit")
+@login_required
+def match_edit(match_id):
+    row = require_match_captain(match_id)
+    if not row:
+        return "Unauthorized", 403
+
+    # inline editor page (no template needed)
+    return f"""
+    <!doctype html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Match bearbeiten</title>
+    </head><body class="p-4">
+    <div class="container" style="max-width:860px;">
+      <h3 class="mb-3">Match bearbeiten</h3>
+      <form method="post" action="/match/{match_id}/edit" class="card p-3">
+        <div class="mb-3">
+          <label class="form-label">Opponent</label>
+          <input class="form-control" name="opponent" value="{row.get('opponent','')}" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Location</label>
+          <input class="form-control" name="location" value="{row.get('location','')}" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Neue Vorschlagsdaten (optional, überschreibt alles)</label>
+          <div class="text-muted mb-2">Format: HTML datetime-local. Lass leer, wenn du nur Opponent/Location ändern willst.</div>
+          <input class="form-control mb-2" type="datetime-local" name="proposal_dates">
+          <input class="form-control mb-2" type="datetime-local" name="proposal_dates">
+          <input class="form-control mb-2" type="datetime-local" name="proposal_dates">
+        </div>
+        <button class="btn btn-primary">Speichern</button>
+        <a class="btn btn-link" href="/match/{match_id}">Abbrechen</a>
+      </form>
+
+      <form method="post" action="/match/{match_id}/delete" class="mt-3"
+            onsubmit="return confirm('Match wirklich löschen?');">
+        <button class="btn btn-danger">Match löschen</button>
+      </form>
+    </div></body></html>
+    """
+
+
+@app.post("/match/<int:match_id>/edit")
+@login_required
+def match_edit_post(match_id):
+    row = require_match_captain(match_id)
+    if not row:
+        return "Unauthorized", 403
+
+    opponent = request.form["opponent"].strip()
+    location = request.form["location"].strip()
+
+    db_write(
+        "UPDATE matches SET opponent=%s, location=%s WHERE id=%s",
+        (opponent, location, match_id)
+    )
+
+    # If proposal_dates provided, reset schedule (and availability based on old dates)
+    proposed = [d for d in request.form.getlist("proposal_dates") if d]
+    if proposed:
+        # delete availability for this match
+        db_write("""
+            DELETE a FROM availability a
+            JOIN match_dates md ON md.id=a.match_date_id
+            WHERE md.match_id=%s
+        """, (match_id,))
+        db_write("DELETE FROM match_dates WHERE match_id=%s", (match_id,))
+
+        for d in proposed:
+            db_write(
+                "INSERT INTO match_dates (match_id, proposed_datetime) VALUES (%s, %s)",
+                (match_id, d.replace("T", " "))
+            )
+
+        # revert to planned if dates changed
+        db_write(
+            "UPDATE matches SET status='planned', final_date=NULL WHERE id=%s",
+            (match_id,)
+        )
+
+    flash("Match gespeichert.", "success")
+    return redirect(url_for("match_detail", match_id=match_id))
+
+
+@app.post("/match/<int:match_id>/delete")
+@login_required
+def match_delete(match_id):
+    row = require_match_captain(match_id)
+    if not row:
+        return "Unauthorized", 403
+
+    # Delete match-related
+    db_write("DELETE FROM match_messages WHERE match_id=%s", (match_id,))
+    db_write("DELETE FROM match_tasks WHERE match_id=%s", (match_id,))
+    db_write("DELETE FROM lineup WHERE match_id=%s", (match_id,))
+    db_write("""
+        DELETE a FROM availability a
+        JOIN match_dates md ON md.id=a.match_date_id
+        WHERE md.match_id=%s
+    """, (match_id,))
+    db_write("DELETE FROM match_dates WHERE match_id=%s", (match_id,))
+    db_write("DELETE FROM matches WHERE id=%s", (match_id,))
+
+    flash("Match gelöscht.", "success")
+    return redirect(url_for("team_manage", team_id=row["team_id"]))
+
+
+# ------------------------
+# Availability submit (players)
 # ------------------------
 
 @app.post("/match/availability")
@@ -582,7 +711,6 @@ def match_availability():
 
     selected = {int(x) for x in request.form.getlist("date_ids")}
 
-    # clear existing
     db_write("""
         DELETE a FROM availability a
         JOIN match_dates md ON md.id=a.match_date_id
@@ -703,7 +831,7 @@ def match_confirm_lineup():
 
 
 # ------------------------
-# Claim a logistics task
+# Volunteer a logistics task (players too; first gets it)
 # ------------------------
 
 @app.post("/match/task")
@@ -735,7 +863,7 @@ def match_task():
 
 
 # ------------------------
-# Post a message
+# Post a message (players too)
 # ------------------------
 
 @app.post("/match/message")
